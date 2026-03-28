@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Tasks Earning</title>
+<script>
+// ── Dynamic Firebase Loader ──────────────────────────────────────────
+// Loads all 3 Firebase v8 scripts in sequence (one after another),
+// only moving to the next after the previous has fully loaded.
+// This is the most reliable method across all browsers and environments.
+
+var db = null, auth = null, provider = null;
+
+function loadScript(url, onSuccess, onError) {
+  var s = document.createElement('script');
+  s.src = url;
+  s.onload  = onSuccess;
+  s.onerror = onError;
+  document.head.appendChild(s);
+}
+
+function firebaseLoadError() {
+  // Show a visible error overlay so the user knows what happened
+  document.addEventListener('DOMContentLoaded', function() {
+    var el = document.getElementById('s0');
+    if (el) el.innerHTML =
+      '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:16px;padding:30px;text-align:center">' +
+      '<div style="font-size:48px">📶</div>' +
+      '<div style="font-size:18px;font-weight:700;color:#FF6400">Connection Error</div>' +
+      '<div style="font-size:13px;color:rgba(255,255,255,.5);line-height:1.7">Firebase could not load.<br>Please check your internet<br>connection and reload the page.</div>' +
+      '<button onclick="location.reload()" style="margin-top:8px;padding:12px 28px;background:linear-gradient(135deg,#FF6400,#FF9933);border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer">🔄 Reload</button>' +
+      '</div>';
+    el.classList.add('on');
+  });
+}
+
+function initFirebase() {
+  firebase.initializeApp({
+    apiKey:            "AIzaSyCfoOInIW8XqwS7n2UckoO-BUoULU48gWg",
+    authDomain:        "tasks-earning-3da9e.firebaseapp.com",
+    databaseURL:       "https://tasks-earning-3da9e-default-rtdb.firebaseio.com",
+    projectId:         "tasks-earning-3da9e",
+    storageBucket:     "tasks-earning-3da9e.firebasestorage.app",
+    messagingSenderId: "394253568398",
+    appId:             "1:394253568398:web:60d6a1bb91db98a42ffcdf"
+  });
+  db       = firebase.database();
+  auth     = firebase.auth();
+  provider = new firebase.auth.GoogleAuthProvider();
+  // Signal that Firebase is ready — the splash screen listener will pick this up
+  document.dispatchEvent(new Event('firebaseReady'));
+}
+
+// Load app → then auth → then database → then init
+// Each script waits for the previous to fully load before starting
+var BASE = 'https://www.gstatic.com/firebasejs/8.10.0/';
+loadScript(BASE + 'firebase-app.js',
+  function() {
+    loadScript(BASE + 'firebase-auth.js',
+      function() {
+        loadScript(BASE + 'firebase-database.js',
+          function() { initFirebase(); },
+          firebaseLoadError
+        );
+      },
+      firebaseLoadError
+    );
+  },
+  firebaseLoadError
+);
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body { font-family:'Poppins',sans-serif; background:#0A0A18; color:#fff; height:100vh; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+
+
+/* ── GOOGLE SIGN IN ── */
+.btn-google {
+  width:100%; padding:14px 16px;
+  background:#fff; border:none; border-radius:13px;
+  display:flex; align-items:center; justify-content:center; gap:12px;
+  font-family:'Poppins',sans-serif; font-size:15px; font-weight:600;
+  color:#1F1F1F; cursor:pointer;
+  box-shadow:0 4px 20px rgba(0,0,0,.3);
+  transition:all .2s; margin-bottom:14px;
+}
+.btn-google:active { transform:scale(.97); }
+.btn-google:hover { box-shadow:0 6px 24px rgba(0,0,0,.4); }
+.google-ico { width:22px; height:22px; flex-shrink:0; }
+.sign-divider {
+  display:flex; align-items:center; gap:10px;
+  margin:16px 0; color:rgba(255,255,255,.25); font-size:12px;
+}
+.sign-divider::before,.sign-divider::after {
+  content:''; flex:1; height:1px;
+  background:rgba(255,255,255,.12);
+}
+/* Avatar in topbar */
+.tb-photo {
+  width:40px; height:40px; border-radius:12px;
+  overflow:hidden; flex-shrink:0;
+  background:linear-gradient(135deg,#FF6400,#FF9933);
+  display:flex; align-items:center; justify-content:center; font-size:18px;
+}
+.tb-photo img { width:100%; height:100%; object-fit:cover; }
+/* Auth loading overlay */
+.auth-loading {
+  position:absolute; inset:0;
+  background:rgba(10,10,24,.92); backdrop-filter:blur(8px);
+  display:none; flex-direction:column;
+  align-items:center; justify-content:center; gap:14px;
+  z-index:500; border-radius:inherit;
+}
+.auth-loading.show { display:flex; }
+.auth-spinner {
+  width:38px; height:38px;
+  border:3px solid rgba(255,100,0,.2);
+  border-top-color:#FF6400;
+  border-radius:50%; animation:spin .8s linear infinite;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+.auth-loading-txt { font-size:13px; color:rgba(255,255,255,.6); }
+
+/* ── PHONE ── */
+.phone { width:100%; max-width:400px; height:100vh; max-height:780px; background:#0A0A18; border-radius:0; overflow:hidden; position:relative; }
+@media(min-width:500px){ .phone { border-radius:40px; border:2px solid rgba(255,100,0,.3); box-shadow:0 0 60px rgba(255,100,0,.1); } }
+
+/* ── SCREENS ── */
+.sc { position:absolute; inset:0; display:none; flex-direction:column; overflow:hidden; }
+.sc.on { display:flex; }
+
+/* ── ANIMATIONS ── */
+@keyframes up { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+@keyframes pop { 0%,100% { transform:scale(1); } 50% { transform:scale(1.08); } }
+@keyframes spin { to { transform:rotate(360deg); } }
+@keyframes float { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-8px); } }
+
+/* ════════════════ SPLASH ════════════════ */
+#s0 { background:linear-gradient(160deg,#0A0A18,#1C0500,#080A1C); align-items:center; justify-content:center; gap:8px; }
+.sp-glow { position:absolute; width:280px; height:280px; background:radial-gradient(circle,rgba(255,100,0,.2),transparent 70%); }
+.sp-ico { font-size:72px; z-index:1; animation:float 3s ease-in-out infinite; }
+.sp-name { font-size:30px; font-weight:800; z-index:1; background:linear-gradient(135deg,#fff,#FF9933); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.sp-tag { font-size:12px; color:rgba(255,255,255,.4); z-index:1; }
+.sp-badge { z-index:1; margin-top:8px; background:rgba(255,153,51,.12); border:1px solid rgba(255,153,51,.3); border-radius:100px; padding:5px 16px; font-size:11px; color:#FF9933; font-weight:600; }
+.sp-dots { display:flex; gap:8px; margin-top:48px; z-index:1; }
+.sp-dot { width:8px; height:8px; border-radius:50%; background:#FF6400; animation:pop 1.2s infinite; }
+.sp-dot:nth-child(2){ animation-delay:.2s; } .sp-dot:nth-child(3){ animation-delay:.4s; }
+.tricolor { position:absolute; bottom:0; left:0; right:0; height:4px; display:flex; }
+.tc-s{flex:1;background:#FF9933} .tc-w{flex:1;background:#fff} .tc-g{flex:1;background:#138808}
+
+/* ════════════════ LOGIN ════════════════ */
+#s1 { background:#0A0A18; overflow-y:auto; animation:up .4s ease; }
+#s1::-webkit-scrollbar{display:none}
+.login-top { background:linear-gradient(135deg,#1C0500,#0A0818); padding:44px 22px 22px; position:relative; overflow:hidden; }
+.login-top::before { content:''; position:absolute; top:-50px; right:-50px; width:180px; height:180px; background:radial-gradient(circle,rgba(255,100,0,.18),transparent 70%); }
+.lt-row { display:flex; align-items:center; justify-content:space-between; position:relative; z-index:1; }
+.lt-logo { display:flex; align-items:center; gap:9px; }
+.lt-ico { width:40px; height:40px; background:linear-gradient(135deg,#FF6400,#FF9933); border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:18px; }
+.lt-n { font-size:16px; font-weight:800; }
+.lt-welcome { position:relative; z-index:1; margin-top:18px; }
+.lt-hi { font-size:12px; color:rgba(255,255,255,.4); }
+.lt-title { font-size:24px; font-weight:800; line-height:1.2; background:linear-gradient(135deg,#fff,#FF9933); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.lt-sub { font-size:11px; color:rgba(255,255,255,.4); margin-top:4px; }
+.earn-row { display:flex; gap:7px; margin-top:14px; flex-wrap:wrap; position:relative; z-index:1; }
+.ec { background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.1); border-radius:100px; padding:4px 11px; font-size:10px; font-weight:600; color:#F59E0B; }
+.login-form { padding:20px 22px; }
+.lf-title { font-size:16px; font-weight:700; margin-bottom:3px; }
+.lf-sub { font-size:12px; color:rgba(255,255,255,.4); margin-bottom:18px; }
+.irow { display:flex; align-items:center; background:rgba(255,255,255,.05); border:1.5px solid rgba(255,100,0,.25); border-radius:13px; overflow:hidden; margin-bottom:11px; transition:border-color .3s; }
+.irow:focus-within { border-color:#FF6400; background:rgba(255,100,0,.06); }
+.ipre { padding:13px 10px 13px 15px; font-size:18px; border-right:1px solid rgba(255,100,0,.2); flex-shrink:0; }
+.ipre-txt { padding:13px 10px 13px 15px; font-size:13px; font-weight:600; color:#FF9933; border-right:1px solid rgba(255,100,0,.2); flex-shrink:0; }
+.iinner { flex:1; background:transparent; border:none; padding:13px 14px; color:#fff; font-family:'Poppins',sans-serif; font-size:14px; outline:none; }
+.iinner::placeholder { color:rgba(255,255,255,.2); }
+.err { font-size:11px; color:#EF4444; margin:-7px 0 8px; display:none; }
+.err.on { display:block; }
+.btn-main { width:100%; padding:14px; background:linear-gradient(135deg,#FF6400,#FF9933); border:none; border-radius:13px; color:#fff; font-family:'Poppins',sans-serif; font-size:15px; font-weight:700; cursor:pointer; box-shadow:0 8px 24px rgba(255,100,0,.4); transition:all .2s; }
+.btn-main:active { transform:scale(.97); }
+.terms { text-align:center; font-size:10px; color:rgba(255,255,255,.3); margin-top:10px; }
+.terms span { color:#FF9933; }
+
+/* ════════════════ OTP ════════════════ */
+#s2 { background:#0A0A18; align-items:center; justify-content:center; padding:0 22px; animation:up .4s ease; flex-direction:column; gap:0; }
+.otp-ico { font-size:56px; margin-bottom:12px; }
+.otp-title { font-size:22px; font-weight:800; text-align:center; }
+.otp-sub { font-size:12px; color:rgba(255,255,255,.4); text-align:center; margin-top:5px; margin-bottom:26px; line-height:1.6; }
+.otp-boxes { display:flex; gap:10px; margin-bottom:14px; }
+.ob { width:46px; height:54px; background:rgba(255,255,255,.06); border:2px solid rgba(255,100,0,.25); border-radius:12px; text-align:center; color:#fff; font-family:'Poppins',sans-serif; font-size:22px; font-weight:700; outline:none; transition:border-color .3s; }
+.ob:focus { border-color:#FF6400; background:rgba(255,100,0,.08); }
+.otp-timer { color:#F59E0B; font-size:13px; margin-bottom:18px; }
+.resend { font-size:12px; color:rgba(255,255,255,.4); margin-top:10px; text-align:center; }
+.resend span { color:#FF9933; cursor:pointer; }
+
+/* ════════════════ DASHBOARD ════════════════ */
+#s3 { background:#0A0A18; animation:up .4s ease; }
+.topbar { background:linear-gradient(135deg,#1C0500,#0A0818); padding:34px 18px 13px; border-bottom:1px solid rgba(255,100,0,.15); flex-shrink:0; }
+.tb-row { display:flex; align-items:center; justify-content:space-between; }
+.tb-left { display:flex; align-items:center; gap:10px; }
+.tb-av { width:40px; height:40px; background:linear-gradient(135deg,#FF6400,#FF9933); border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:18px; }
+.tb-name { font-size:13px; font-weight:700; }
+.tb-ph { font-size:10px; color:rgba(255,255,255,.4); }
+.tb-pts { font-size:22px; font-weight:800; color:#F59E0B; }
+.tb-lbl { font-size:10px; color:rgba(255,255,255,.4); text-align:right; }
+.scroll { flex:1; overflow-y:auto; padding:14px; padding-bottom:70px; }
+.scroll::-webkit-scrollbar{display:none}
+.bal-card { background:linear-gradient(135deg,#1C0500,#080A1C); border:1px solid rgba(255,100,0,.3); border-radius:22px; padding:22px; margin-bottom:12px; position:relative; overflow:hidden; }
+.bal-card::before { content:''; position:absolute; top:-30px; right:-30px; width:130px; height:130px; background:radial-gradient(circle,rgba(255,100,0,.2),transparent 70%); }
+.bal-lbl { font-size:12px; color:rgba(255,255,255,.4); }
+.bal-amt { font-size:44px; font-weight:800; color:#F59E0B; line-height:1; margin:5px 0; }
+.bal-sub { font-size:11px; color:rgba(255,255,255,.4); }
+.btn-withdraw { background:rgba(255,100,0,.15); border:1px solid #FF6400; border-radius:10px; padding:8px 16px; color:#FF9933; font-family:'Poppins',sans-serif; font-size:12px; font-weight:600; cursor:pointer; margin-top:12px; }
+.ci-card { background:linear-gradient(135deg,rgba(16,185,129,.1),rgba(6,182,212,.07)); border:1px solid rgba(16,185,129,.22); border-radius:16px; padding:13px 14px; display:flex; align-items:center; gap:12px; margin-bottom:12px; cursor:pointer; }
+.ci-inf { flex:1; }
+.ci-title { font-size:13px; font-weight:700; }
+.ci-sub { font-size:10px; color:rgba(255,255,255,.4); }
+.ci-tmr { font-size:10px; color:#F59E0B; font-weight:600; margin-top:2px; }
+.btn-claim { background:#1DB954; border:none; border-radius:9px; padding:8px 13px; color:#fff; font-family:'Poppins',sans-serif; font-size:11px; font-weight:700; cursor:pointer; white-space:nowrap; }
+.btn-claim.off { background:rgba(255,255,255,.2); cursor:not-allowed; }
+.sec-t { font-size:14px; font-weight:700; margin-bottom:10px; color:rgba(255,255,255,.9); }
+.tgrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+.tc { background:#111126; border:1px solid rgba(255,255,255,.07); border-radius:18px; padding:18px 10px; text-align:center; cursor:pointer; transition:all .22s; position:relative; overflow:hidden; }
+.tc::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; border-radius:18px 18px 0 0; }
+.tc-a::before{background:linear-gradient(90deg,#FF6400,#FF9933)} .tc-b::before{background:linear-gradient(90deg,#06B6D4,#22D3EE)} .tc-c::before{background:linear-gradient(90deg,#138808,#1DB954)} .tc-d::before{background:linear-gradient(90deg,#EC4899,#F472B6)}
+.tc:active { transform:scale(.93); }
+.tc-ico { font-size:30px; margin-bottom:6px; }
+.tc-name { font-size:11px; font-weight:700; }
+.tc-pts { font-size:10px; color:#F59E0B; margin-top:2px; font-weight:600; }
+.bnav { position:absolute; bottom:0; left:0; right:0; height:58px; background:rgba(8,8,20,.96); backdrop-filter:blur(20px); border-top:1px solid rgba(255,255,255,.07); display:flex; align-items:center; }
+.ni { flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; cursor:pointer; padding:6px; }
+.ni .ico { font-size:20px; filter:grayscale(1) opacity(.5); }
+.ni.on .ico { filter:none; }
+.ni .lbl { font-size:10px; color:rgba(255,255,255,.4); }
+.ni.on .lbl { color:#FF9933; }
+
+/* ════════════════ TASK SCREENS ════════════════ */
+.sh { background:linear-gradient(135deg,#1C0500,#0A0818); padding:34px 18px 13px; display:flex; align-items:center; gap:10px; border-bottom:1px solid rgba(255,100,0,.15); flex-shrink:0; }
+.back { width:34px; height:34px; background:rgba(255,255,255,.07); border:none; border-radius:10px; color:#fff; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.sh-title { font-size:16px; font-weight:700; }
+.sh-badge { margin-left:auto; background:rgba(245,158,11,.12); border:1px solid rgba(245,158,11,.25); border-radius:8px; padding:3px 10px; font-size:11px; color:#F59E0B; font-weight:600; }
+
+/* CAPTCHA */
+#s4 { background:#0A0A18; animation:up .4s ease; }
+.cap-wrap { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:22px; gap:14px; }
+.prog-wrap { width:100%; background:rgba(255,255,255,.07); border-radius:100px; height:5px; overflow:hidden; }
+.prog { height:100%; background:linear-gradient(90deg,#FF6400,#FF9933); border-radius:100px; transition:width .4s; }
+.cap-box { background:#111126; border:2px dashed rgba(255,100,0,.4); border-radius:18px; padding:22px 32px; text-align:center; width:100%; }
+.cap-txt { font-size:34px; font-weight:800; letter-spacing:9px; background:linear-gradient(135deg,#fff,#FF9933); -webkit-background-clip:text; -webkit-text-fill-color:transparent; text-decoration:line-through; text-decoration-color:rgba(255,100,0,.4); filter:blur(.5px); user-select:none; }
+.cap-hint { font-size:10px; color:rgba(255,255,255,.3); margin-top:4px; }
+.btn-ref { background:transparent; border:1px solid rgba(255,255,255,.15); border-radius:8px; padding:5px 12px; color:rgba(255,255,255,.4); font-size:11px; cursor:pointer; margin-top:6px; }
+.cap-in { width:100%; padding:13px; background:rgba(255,255,255,.05); border:1.5px solid rgba(255,100,0,.25); border-radius:13px; color:#fff; font-family:'Poppins',sans-serif; font-size:18px; outline:none; text-align:center; letter-spacing:6px; transition:border-color .3s; }
+.cap-in:focus { border-color:#FF6400; }
+.cap-in::placeholder { font-size:13px; letter-spacing:0; color:rgba(255,255,255,.2); }
+
+/* QUIZ */
+#s5 { background:#0A0A18; animation:up .4s ease; }
+.quiz-wrap { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:22px; gap:14px; }
+.score-chip { background:rgba(16,185,129,.1); border:1px solid rgba(16,185,129,.22); border-radius:100px; padding:5px 16px; font-size:12px; color:#1DB954; font-weight:600; }
+.q-card { background:#111126; border:1px solid rgba(255,255,255,.07); border-radius:20px; padding:30px; width:100%; text-align:center; }
+.q-lbl { font-size:10px; color:rgba(255,255,255,.3); margin-bottom:5px; }
+.q-txt { font-size:38px; font-weight:800; background:linear-gradient(135deg,#fff,#06B6D4); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.ans-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; width:100%; }
+.ans { background:#111126; border:1.5px solid rgba(255,255,255,.1); border-radius:14px; padding:16px; font-size:20px; font-weight:800; cursor:pointer; text-align:center; transition:all .2s; }
+.ans.ok { background:rgba(16,185,129,.15); border-color:#1DB954; color:#1DB954; }
+.ans.no { background:rgba(239,68,68,.1); border-color:#EF4444; color:#EF4444; }
+
+/* WALLET */
+#s6 { background:#0A0A18; animation:up .4s ease; }
+.ws { flex:1; overflow-y:auto; padding:14px; padding-bottom:26px; }
+.ws::-webkit-scrollbar{display:none}
+.wbal { background:linear-gradient(135deg,#1C0500,#080A1C); border:1px solid rgba(255,100,0,.3); border-radius:20px; padding:22px; text-align:center; margin-bottom:13px; position:relative; overflow:hidden; }
+.wbal::after { content:'💰'; position:absolute; right:16px; top:14px; font-size:32px; opacity:.18; }
+.w-lbl { font-size:12px; color:rgba(255,255,255,.4); }
+.w-amt { font-size:44px; font-weight:800; color:#F59E0B; line-height:1; margin:4px 0 2px; }
+.fc { background:#111126; border:1px solid rgba(255,255,255,.07); border-radius:18px; padding:16px; margin-bottom:12px; }
+.fc-t { font-size:13px; font-weight:700; margin-bottom:12px; }
+.fl { font-size:11px; color:rgba(255,255,255,.4); display:block; margin-bottom:4px; }
+.fi { width:100%; padding:11px 13px; background:rgba(255,255,255,.05); border:1.5px solid rgba(255,100,0,.22); border-radius:11px; color:#fff; font-family:'Poppins',sans-serif; font-size:13px; outline:none; margin-bottom:10px; transition:all .3s; }
+.fi:focus { border-color:#FF6400; }
+.fi::placeholder { color:rgba(255,255,255,.2); }
+.fi-hint { font-size:10px; color:rgba(255,255,255,.3); margin-top:-7px; margin-bottom:10px; }
+.h-item { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid rgba(255,255,255,.05); }
+.h-item:last-child{border-bottom:none}
+.h-ico { width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+.h-p{background:rgba(245,158,11,.12)} .h-d{background:rgba(16,185,129,.12)}
+.h-inf{flex:1} .h-tit{font-size:12px;font-weight:600} .h-dt{font-size:10px;color:rgba(255,255,255,.35)}
+.h-bdg{font-size:10px;font-weight:600;padding:3px 9px;border-radius:100px}
+.bp{background:rgba(245,158,11,.12);color:#F59E0B} .bd{background:rgba(16,185,129,.12);color:#1DB954}
+
+/* PROFILE */
+#s7 { background:#0A0A18; animation:up .4s ease; }
+.ps { flex:1; overflow-y:auto; padding:14px; padding-bottom:26px; }
+.ps::-webkit-scrollbar{display:none}
+.p-hero { background:linear-gradient(135deg,#1C0500,#080A1C); border:1px solid rgba(255,255,255,.07); border-radius:20px; padding:22px; text-align:center; margin-bottom:12px; }
+.p-av { width:70px; height:70px; background:linear-gradient(135deg,#FF6400,#FF9933); border-radius:20px; display:flex; align-items:center; justify-content:center; font-size:28px; margin:0 auto 10px; }
+.p-name { font-size:18px; font-weight:800; }
+.p-ph { font-size:12px; color:rgba(255,255,255,.4); margin-top:2px; }
+.p-stats { display:flex; gap:8px; margin-top:14px; }
+.pst { flex:1; background:rgba(255,255,255,.05); border-radius:11px; padding:10px 5px; text-align:center; }
+.pst-n { font-size:16px; font-weight:700; color:#F59E0B; }
+.pst-l { font-size:9px; color:rgba(255,255,255,.35); margin-top:1px; }
+.menu { display:flex; flex-direction:column; gap:7px; }
+.mi { background:#111126; border:1px solid rgba(255,255,255,.07); border-radius:13px; padding:13px; display:flex; align-items:center; gap:10px; cursor:pointer; transition:all .2s; }
+.mi:active{transform:scale(.98)}
+.mi-ic { width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:15px; }
+.mi-tit { font-size:13px; font-weight:600; }
+.mi-sub { font-size:10px; color:rgba(255,255,255,.35); }
+.mi-arr { margin-left:auto; color:rgba(255,255,255,.3); }
+
+/* HELP */
+#s8 { background:#0A0A18; animation:up .4s ease; }
+.hs { flex:1; overflow-y:auto; padding:14px; padding-bottom:26px; }
+.hs::-webkit-scrollbar{display:none}
+.help-hero { background:linear-gradient(135deg,#1C0500,#080A1C); border:1px solid rgba(255,100,0,.25); border-radius:18px; padding:20px; text-align:center; margin-bottom:13px; }
+.help-sent { background:rgba(16,185,129,.07); border:1px solid rgba(16,185,129,.2); border-radius:13px; padding:18px; text-align:center; margin-bottom:13px; display:none; }
+.help-sent.on { display:block; }
+.fq { background:#111126; border:1px solid rgba(255,255,255,.07); border-radius:12px; padding:13px; margin-bottom:7px; cursor:pointer; }
+.fq-q { font-size:12px; font-weight:600; display:flex; justify-content:space-between; }
+.fq-a { font-size:11px; color:rgba(255,255,255,.45); margin-top:7px; line-height:1.6; display:none; }
+.fq-a.on { display:block; }
+
+/* TOAST */
+.toast { position:absolute; bottom:72px; left:14px; right:14px; background:rgba(15,10,2,.97); border:1px solid rgba(255,100,0,.3); border-radius:12px; padding:12px 16px; font-size:12px; font-weight:600; text-align:center; z-index:999; opacity:0; transform:translateY(8px); transition:all .3s; pointer-events:none; }
+.toast.on { opacity:1; transform:translateY(0); }
+
+/* SELECT */
+.fsel { width:100%; padding:11px 13px; background:rgba(255,255,255,.05); border:1.5px solid rgba(255,100,0,.22); border-radius:11px; color:#fff; font-family:'Poppins',sans-serif; font-size:13px; outline:none; margin-bottom:10px; -webkit-appearance:none; }
+.fsel option { background:#111126; }
+.ftxt { width:100%; min-height:90px; padding:11px 13px; background:rgba(255,255,255,.05); border:1.5px solid rgba(255,100,0,.22); border-radius:11px; color:#fff; font-family:'Poppins',sans-serif; font-size:13px; outline:none; resize:none; margin-bottom:10px; }
+.ftxt::placeholder{color:rgba(255,255,255,.2)}
+</style>
+</head>
+<body>
+<div class="phone">
+
+<!-- S0: SPLASH -->
+<div class="sc on" id="s0">
+  <div class="sp-glow"></div>
+  <div class="sp-ico">🎯</div>
+  <div class="sp-name">Tasks Earning</div>
+  <div class="sp-tag">Play · Earn · Withdraw</div>
+  <div class="sp-badge">🇮🇳 Made in India</div>
+  <div class="sp-dots"><div class="sp-dot"></div><div class="sp-dot"></div><div class="sp-dot"></div></div>
+  <div class="tricolor"><div class="tc-s"></div><div class="tc-w"></div><div class="tc-g"></div></div>
+</div>
+
+<!-- S1: LOGIN -->
+<!-- S1: LOGIN — Google Auth -->
+<div class="sc" id="s1">
+  <!-- Auth Loading Overlay -->
+  <div class="auth-loading" id="authLoading">
+    <div class="auth-spinner"></div>
+    <div class="auth-loading-txt" id="authLoadTxt">Signing you in...</div>
+  </div>
+
+  <div class="login-top">
+    <div class="lt-row">
+      <div class="lt-logo"><div class="lt-ico">🎯</div><div class="lt-n">Tasks Earning</div></div>
+      <span style="font-size:22px">🇮🇳</span>
+    </div>
+    <div class="lt-welcome">
+      <div class="lt-hi">Welcome to</div>
+      <div class="lt-title">India's #1<br>Earning App</div>
+      <div class="lt-sub">Complete tasks · Earn Points · Withdraw Money</div>
+    </div>
+    <div class="earn-row">
+      <div class="ec">+5 Captcha</div>
+      <div class="ec">+10 Tasks</div>
+      <div class="ec">+15 Watch Ad</div>
+      <div class="ec">+50 Referral</div>
+    </div>
+  </div>
+
+  <div class="login-form">
+    <div class="lf-title">Get Started 🚀</div>
+    <div class="lf-sub">Sign in with your Google account</div>
+
+    <!-- Google Sign In Button -->
+    <button class="btn-google" onclick="signInWithGoogle()">
+      <svg class="google-ico" viewBox="0 0 24 24">
+        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+      </svg>
+      Continue with Google
+    </button>
+
+    <!-- Error message -->
+    <div id="authErr" style="display:none;background:rgba(255,68,68,.1);border:1px solid rgba(255,68,68,.3);border-radius:10px;padding:10px 14px;font-size:12px;color:#FF4444;text-align:center;margin-bottom:12px"></div>
+
+    <div class="terms">By continuing you agree to our <span>Terms & Privacy Policy</span></div>
+  </div>
+
+  <div class="tricolor" style="position:relative;margin-top:auto"><div class="tc-s"></div><div class="tc-w"></div><div class="tc-g"></div></div>
+</div>
+
+<!-- S2 kept but hidden — not used anymore -->
+<div class="sc" id="s2" style="display:none!important"></div>
+
+<!-- S3: DASHBOARD -->
+<div class="sc" id="s3">
+  <div class="topbar">
+    <div class="tb-row">
+      <div class="tb-left">
+        <div class="tb-photo" id="tbPhoto"><span id="tbPhotoTxt">👤</span></div>
+        <div><div class="tb-name" id="tbName">Tasks Earner 🇮🇳</div><div class="tb-ph" id="tbPh">+91 XXXXXXXXXX</div></div>
+      </div>
+      <div><div class="tb-pts" id="tbPts">0</div><div class="tb-lbl">Points</div></div>
+    </div>
+  </div>
+  <div class="scroll">
+    <div class="bal-card">
+      <div class="bal-lbl">💰 Your Balance</div>
+      <div class="bal-amt" id="balAmt">0</div>
+      <div class="bal-sub">Points · Minimum withdrawal: 1,000</div>
+      <button class="btn-withdraw" onclick="go('s6')">💸 Withdraw Now</button>
+    </div>
+    <div class="ci-card" id="ciCard" onclick="doCI()">
+      <div style="font-size:28px">📅</div>
+      <div class="ci-inf">
+        <div class="ci-title">Daily Check-in</div>
+        <div class="ci-sub" id="ciSub">Claim your free +10 Points today</div>
+        <div class="ci-tmr" id="ciTmr" style="display:none"></div>
+      </div>
+      <button class="btn-claim" id="ciBtn">Claim</button>
+    </div>
+    <div class="sec-t">⚡ Available Tasks</div>
+    <div class="tgrid">
+      <div class="tc tc-a" onclick="go('s4')"><div class="tc-ico">🔐</div><div class="tc-name">Captcha</div><div class="tc-pts">+5 Points</div></div>
+      <div class="tc tc-b" onclick="go('s5')"><div class="tc-ico">🧮</div><div class="tc-name">Math Quiz</div><div class="tc-pts">+10 Points</div></div>
+      <div class="tc tc-c" onclick="doAd()"><div class="tc-ico">📺</div><div class="tc-name">Watch Ad</div><div class="tc-pts">+15 Points</div></div>
+      <div class="tc tc-d" onclick="doRef()"><div class="tc-ico">👥</div><div class="tc-name">Refer Friend</div><div class="tc-pts">+50 Points</div></div>
+    </div>
+  </div>
+  <div class="bnav">
+    <div class="ni on" id="n0" onclick="navTo(0)"><div class="ico">🏠</div><div class="lbl">Home</div></div>
+    <div class="ni" id="n1" onclick="navTo(1);go('s6')"><div class="ico">💰</div><div class="lbl">Wallet</div></div>
+    <div class="ni" id="n2" onclick="navTo(2);go('s7')"><div class="ico">👤</div><div class="lbl">Profile</div></div>
+  </div>
+</div>
+
+<!-- S4: CAPTCHA -->
+<div class="sc" id="s4">
+  <div class="sh"><button class="back" onclick="go('s3')">←</button><div class="sh-title">🔐 Captcha Task</div><div class="sh-badge">+5 pts each</div></div>
+  <div class="cap-wrap">
+    <div style="display:flex;justify-content:space-between;width:100%;font-size:11px;color:rgba(255,255,255,.4)"><span>Today's Progress</span><span id="capCnt">0/10</span></div>
+    <div class="prog-wrap"><div class="prog" id="capProg" style="width:0%"></div></div>
+    <div class="cap-box">
+      <div class="cap-txt" id="capTxt">X7mK2p</div>
+      <div class="cap-hint">Type the text shown above</div>
+      <button class="btn-ref" onclick="newCap()">🔄 Refresh</button>
+    </div>
+    <input class="cap-in" type="text" id="capIn" placeholder="Type here..." onkeydown="if(event.key==='Enter')checkCap()">
+    <button class="btn-main" onclick="checkCap()" style="width:100%">Submit ✅</button>
+  </div>
+</div>
+
+<!-- S5: QUIZ -->
+<div class="sc" id="s5">
+  <div class="sh"><button class="back" onclick="go('s3')">←</button><div class="sh-title">🧮 Math Quiz</div><div class="sh-badge">+10 pts each</div></div>
+  <div class="quiz-wrap">
+    <div class="score-chip">✅ Score: <span id="qScore">0</span></div>
+    <div class="q-card"><div class="q-lbl">Choose the correct answer</div><div class="q-txt" id="qTxt">?</div></div>
+    <div class="ans-grid">
+      <div class="ans" id="a0"></div><div class="ans" id="a1"></div>
+      <div class="ans" id="a2"></div><div class="ans" id="a3"></div>
+    </div>
+    <div style="font-size:11px;color:rgba(255,255,255,.3)">Correct answer = +10 Points!</div>
+  </div>
+</div>
+
+<!-- S6: WALLET -->
+<div class="sc" id="s6">
+  <div class="sh"><button class="back" onclick="go('s3')">←</button><div class="sh-title">💰 Wallet</div></div>
+  <div class="ws">
+    <div class="wbal"><div class="w-lbl">Your Balance</div><div class="w-amt" id="wAmt">0</div><div style="font-size:11px;color:rgba(255,255,255,.35)">Points</div></div>
+    <div class="fc">
+      <div class="fc-t">💸 Withdrawal Request</div>
+      <label class="fl">UPI / Google Pay Number</label>
+      <input class="fi" type="tel" id="payNum" placeholder="Enter your UPI / GPay number">
+      <label class="fl">Points Amount</label>
+      <input class="fi" type="number" id="payAmt" placeholder="Minimum 1000">
+      <div class="fi-hint">1,000 Points = 1 Withdrawal Request</div>
+      <button class="btn-main" onclick="doWithdraw()">Submit Request 🚀</button>
+    </div>
+    <div class="fc"><div class="fc-t">📋 History</div><div id="histDiv"><div style="text-align:center;color:rgba(255,255,255,.3);padding:18px;font-size:12px">No withdrawals yet</div></div></div>
+  </div>
+</div>
+
+<!-- S7: PROFILE -->
+<div class="sc" id="s7">
+  <div class="sh"><button class="back" onclick="go('s3')">←</button><div class="sh-title">👤 Profile</div></div>
+  <div class="ps">
+    <div class="p-hero">
+      <div class="p-av">🧑</div>
+      <div class="p-name" id="pName">Tasks Earner 🇮🇳</div>
+      <div class="p-ph" id="pPh">+91 XXXXXXXXXX</div>
+      <div class="p-stats">
+        <div class="pst"><div class="pst-n" id="pPts">0</div><div class="pst-l">Points</div></div>
+        <div class="pst"><div class="pst-n" id="pTasks">0</div><div class="pst-l">Tasks</div></div>
+        <div class="pst"><div class="pst-n">0</div><div class="pst-l">Referrals</div></div>
+      </div>
+    </div>
+    <div class="menu">
+      <div class="mi" onclick="go('s8')"><div class="mi-ic" style="background:rgba(255,100,0,.12)">💬</div><div><div class="mi-tit">Help Center</div><div class="mi-sub">Contact support team</div></div><div class="mi-arr">›</div></div>
+      <div class="mi" onclick="doRef()"><div class="mi-ic" style="background:rgba(245,158,11,.12)">👥</div><div><div class="mi-tit">Refer & Earn</div><div class="mi-sub">Invite friends, get +50 Points each</div></div><div class="mi-arr">›</div></div>
+      <div class="mi" onclick="doLogout()"><div class="mi-ic" style="background:rgba(239,68,68,.12)">🚪</div><div><div class="mi-tit">Logout</div><div class="mi-sub">Sign out of your account</div></div><div class="mi-arr">›</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- S8: HELP -->
+<div class="sc" id="s8">
+  <div class="sh"><button class="back" onclick="go('s7')">←</button><div class="sh-title">💬 Help Center</div></div>
+  <div class="hs">
+    <div class="help-hero">
+      <div style="font-size:42px;margin-bottom:7px">🎯</div>
+      <div style="font-size:15px;font-weight:700">Tasks Earning Support</div>
+      <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px;line-height:1.6">Send us an email — we'll reply within 24 hours</div>
+      <div style="display:inline-block;background:rgba(255,100,0,.1);border:1px solid rgba(255,100,0,.25);border-radius:100px;padding:4px 14px;font-size:11px;color:#FF9933;font-weight:600;margin-top:9px">📧 <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="7a181e434a4a4f4f4c3a1d171b131654191517">[email&#160;protected]</a></div>
+    </div>
+    <div class="help-sent" id="helpSent">
+      <div style="font-size:32px;margin-bottom:6px">✅</div>
+      <div style="font-size:13px;font-weight:700;color:#1DB954">Email Sent!</div>
+      <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:3px">We'll reply within 24 hours.</div>
+    </div>
+    <div class="fc">
+      <div class="fc-t">📝 Send a Message</div>
+      <label class="fl">Issue Type</label>
+      <select class="fsel" id="hCat"><option value="points">🎯 Points Issue</option><option value="withdrawal">💸 Withdrawal Issue</option><option value="otp">📱 OTP Not Received</option><option value="task">⚡ Task Issue</option><option value="other">❓ Other</option></select>
+      <label class="fl">Your Message</label>
+      <textarea class="ftxt" id="hMsg" placeholder="Describe your issue in detail..."></textarea>
+      <label class="fl">Your Phone Number</label>
+      <input class="fi" type="tel" id="hPh" placeholder="+91 9XXXXXXXXX" style="margin-bottom:14px">
+      <button class="btn-main" onclick="sendHelp()">📧 Send Email</button>
+    </div>
+    <div class="fc">
+      <div class="fc-t">❓ FAQ</div>
+      <div class="fq" onclick="fq(this)"><div class="fq-q">When do points get credited? <span>+</span></div><div class="fq-a">Points are credited immediately after completing a task.</div></div>
+      <div class="fq" onclick="fq(this)"><div class="fq-q">How long does withdrawal take? <span>+</span></div><div class="fq-a">Withdrawal requests are processed within 24-48 hours.</div></div>
+      <div class="fq" onclick="fq(this)"><div class="fq-q">Why am I not receiving OTP? <span>+</span></div><div class="fq-a">OTP only works in APK. In the web version, type any 6 digits.</div></div>
+      <div class="fq" onclick="fq(this)"><div class="fq-q">What is the minimum withdrawal? <span>+</span></div><div class="fq-a">You need at least 1,000 Points to submit a withdrawal request.</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//   TASKS EARNING v4.0 — Google Auth Edition
+// ═══════════════════════════════════════════════
+
+var CI    = 86400000;
+var AD_CD = 1800000;
+var LS    = 'te_v4';
+
+// ── State ──
+var pts=0,tasks=0,qScore=0,capDone=0;
+var cur='s0',email='',name='Tasks Earner',uid='',photoURL='';
+var ciTime=0,adTime=0,refUsed=false,adBusy=false;
+var cdInt,ciInt,hist=[],capCode='X7mK2p';
+
+// ═══════════════════════════════════════════════
+//  localStorage
+// ═══════════════════════════════════════════════
+function saveLS(){
+  try{localStorage.setItem(LS,JSON.stringify({
+    pts:pts,tasks:tasks,qScore:qScore,capDone:capDone,
+    email:email,name:name,uid:uid,photoURL:photoURL,
+    ciTime:ciTime,adTime:adTime,refUsed:refUsed,hist:hist,
+    tasks:tasks
+  }));}catch(e){}
+}
+function loadLS(){
+  try{
+    var d=JSON.parse(localStorage.getItem(LS)||'{}');
+    if(!d.uid)return false;
+    pts=d.pts||0;tasks=d.tasks||0;qScore=d.qScore||0;capDone=d.capDone||0;
+    email=d.email||'';name=d.name||'Tasks Earner';uid=d.uid;
+    photoURL=d.photoURL||'';
+    ciTime=d.ciTime||0;adTime=d.adTime||0;
+    refUsed=d.refUsed||false;hist=d.hist||[];
+    return true;
+  }catch(e){return false;}
+}
+function clearLS(){
+  try{localStorage.removeItem(LS);}catch(e){}
+  pts=0;tasks=0;capDone=0;
+  email='';name='Tasks Earner';uid='';photoURL='';
+  ciTime=0;adTime=0;refUsed=false;hist=[];
+}
+
+// ── Fetch from Firebase ──
+function syncFromFB(){
+  if(!uid)return;
+  try{
+    db.ref('users/'+uid).once('value',function(snap){
+      if(!snap.exists())return;
+      var d=snap.val();
+      if((d.points||0)>pts)pts=d.points;
+      if((d.ciTime||0)>ciTime)ciTime=d.ciTime;
+      if((d.tasks||0)>tasks)tasks=d.tasks;
+      syncPts();updateCI();saveLS();
+    });
+    db.ref('withdrawals').orderByChild('userId').equalTo(uid).once('value',function(snap){
+      if(!snap.exists())return;
+      hist=[];
+      snap.forEach(function(s){
+        var w=s.val();
+        hist.unshift({num:w.payNum,amt:w.amount,status:w.status,
+          t:new Date(w.time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})});
+      });
+      saveLS();
+    });
+  }catch(e){}
+}
+
+// ═══════════════════════════════════════════════
+//  Google Authentication
+// ═══════════════════════════════════════════════
+function showAuthLoading(txt){
+  var el=document.getElementById('authLoading');
+  if(el){el.classList.add('show');document.getElementById('authLoadTxt').textContent=txt||'Signing you in...';}
+}
+function hideAuthLoading(){
+  var el=document.getElementById('authLoading');if(el)el.classList.remove('show');
+}
+
+function signInWithGoogle(){
+  if(!auth){
+    document.getElementById('authErr').textContent='Firebase not loaded. Check your connection and reload.';
+    document.getElementById('authErr').style.display='block';
+    return;
+  }
+  showAuthLoading('Opening Google Sign In...');
+  document.getElementById('authErr').style.display='none';
+
+  // On mobile, popups are often blocked — use redirect as primary method
+  var isMobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if(isMobile){
+    // redirect — page will reload and onAuthStateChanged will catch the result
+    auth.signInWithRedirect(provider).catch(function(error){
+      hideAuthLoading();
+      document.getElementById('authErr').textContent='Sign in failed: '+error.message;
+      document.getElementById('authErr').style.display='block';
+    });
+    return;
+  }
+
+  // Desktop — use popup
+  auth.signInWithPopup(provider)
+    .then(function(result){
+      showAuthLoading('Setting up your account...');
+      onGoogleSignIn(result.user);
+    })
+    .catch(function(error){
+      hideAuthLoading();
+      var errEl=document.getElementById('authErr');
+      if(error.code==='auth/popup-closed-by-user'){
+        errEl.textContent='Sign in was cancelled. Please try again.';
+      } else if(error.code==='auth/network-request-failed'){
+        errEl.textContent='No internet connection. Please check and try again.';
+      } else if(error.code==='auth/popup-blocked'){
+        // Fallback to redirect if popup was blocked on desktop too
+        auth.signInWithRedirect(provider);
+        return;
+      } else {
+        errEl.textContent='Sign in failed: '+error.message;
+      }
+      errEl.style.display='block';
+    });
+}
+
+function onGoogleSignIn(user){
+  uid      = user.uid;
+  name     = user.displayName || 'Tasks Earner';
+  email    = user.email || '';
+  photoURL = user.photoURL || '';
+
+  // Update topbar
+  setTopbarProfile();
+
+  // Save/update user in Firebase
+  db.ref('users/'+uid).once('value',function(snap){
+    if(!snap.exists()){
+      // New user
+      db.ref('users/'+uid).set({
+        uid:uid, name:name, email:email,
+        photoURL:photoURL, points:0,
+        joinDate:Date.now(), ciTime:0
+      });
+    } else {
+      // Existing user — load their data
+      var d=snap.val();
+      if(d.points)pts=d.points;
+      if(d.ciTime)ciTime=d.ciTime;
+      // Update name/photo in case they changed
+      db.ref('users/'+uid).update({name:name,photoURL:photoURL,email:email});
+    }
+    saveLS();
+    hideAuthLoading();
+    go('s3');navTo(0);syncPts();updateCI();
+    toast('👋 Welcome, '+name.split(' ')[0]+'!');
+  });
+}
+
+function setTopbarProfile(){
+  var photoEl=document.getElementById('tbPhoto');
+  var txtEl  =document.getElementById('tbPhotoTxt');
+  if(photoURL && photoEl){
+    photoEl.innerHTML='<img src="'+photoURL+'" onerror="this.parentNode.textContent=\'👤\'">';
+  }
+  var nameEl=document.getElementById('tbName');
+  var phEl  =document.getElementById('tbPh');
+  if(nameEl)nameEl.textContent=name+' 🇮🇳';
+  if(phEl)  phEl.textContent=email;
+  // Profile screen
+  var pNameEl=document.getElementById('pName');
+  var pPhEl  =document.getElementById('pPh');
+  if(pNameEl)pNameEl.textContent=name+' 🇮🇳';
+  if(pPhEl)  pPhEl.textContent=email;
+}
+
+// Auth state listener — waits for Firebase to finish loading dynamically
+document.addEventListener('firebaseReady', function() {
+
+  // Handle redirect result first (mobile Google Sign-In)
+  auth.getRedirectResult().then(function(result){
+    if(result && result.user){
+      showAuthLoading('Setting up your account...');
+      onGoogleSignIn(result.user);
+    }
+  }).catch(function(error){
+    if(error.code !== 'auth/no-auth-event'){
+      var errEl=document.getElementById('authErr');
+      if(errEl){
+        errEl.textContent='Sign in failed: '+error.message;
+        errEl.style.display='block';
+      }
+    }
+  });
+
+  auth.onAuthStateChanged(function(user){
+    if(user && cur==='s0'){
+      uid=user.uid; name=user.displayName||'Tasks Earner';
+      email=user.email||''; photoURL=user.photoURL||'';
+      loadLS();
+      setTopbarProfile();
+      document.getElementById('s0').classList.remove('on');
+      document.getElementById('s3').classList.add('on');
+      cur='s3';
+      syncPts();updateCI();syncFromFB();
+    } else if(!user && cur==='s0'){
+      setTimeout(function(){go('s1');},2500);
+    }
+  });
+});
+
+function doLogout(){
+  clearInterval(ciInt);
+  if(auth){
+    auth.signOut().then(function(){
+      clearLS();clearSession();
+      toast('👋 Logged out!');
+      setTimeout(function(){go('s1');},1500);
+    });
+  } else {
+    clearLS();clearSession();
+    toast('👋 Logged out!');
+    setTimeout(function(){go('s1');},1500);
+  }
+}
+function clearSession(){
+  pts=0;tasks=0;qScore=0;capDone=0;
+  email='';name='Tasks Earner';uid='';photoURL='';
+  ciTime=0;adTime=0;refUsed=false;hist=[];
+}
+// ═══════════════════════════════════════════════
+//  Navigation
+// ═══════════════════════════════════════════════
+function go(s){
+  document.getElementById(cur).classList.remove('on');
+  document.getElementById(s).classList.add('on');
+  cur=s;
+  if(s==='s3'){syncPts();updateCI();}
+  if(s==='s6'){document.getElementById('wAmt').textContent=pts;renderHist();}
+  if(s==='s7')updateProfile();
+}
+function navTo(i){[0,1,2].forEach(function(j){document.getElementById('n'+j).classList.toggle('on',i===j);});}
+
+// ═══════════════════════════════════════════════
+//  Points
+// ═══════════════════════════════════════════════
+var syncPtsTimer=null;
+function syncPts(){
+  // Update UI immediately
+  ['tbPts','balAmt','wAmt','pPts'].forEach(function(id){
+    var e=document.getElementById(id);if(e)e.textContent=pts;
+  });
+  saveLS();
+  // Debounce Firebase write — max once every 3 seconds to save quota
+  clearTimeout(syncPtsTimer);
+  syncPtsTimer=setTimeout(function(){
+    try{if(uid)db.ref('users/'+uid+'/points').set(pts);}catch(e){}
+  },3000);
+}
+function addPts(n, isTask){
+  if(typeof n!=='number'||n<=0||n>100)return;
+  pts+=n;
+  if(isTask)tasks++;  // Only increment tasks when explicitly a task completion
+  syncPts();
+  // Save tasks count to Firebase too
+  try{if(uid)db.ref('users/'+uid+'/tasks').set(tasks);}catch(e){}
+}
+
+// ═══════════════════════════════════════════════
+//  Login — Strict Indian Phone Validation
+// ═══════════════════════════════════════════════
+function doSendOtp(){
+  var ph=document.getElementById('phIn').value.trim();
+  var nm=document.getElementById('nameIn').value.trim();
+  var err=document.getElementById('phErr');
+  // Indian number: starts with 6,7,8,9 — exactly 10 digits
+  if(!/^[6-9]\d{9}$/.test(ph)){
+    err.classList.add('on');
+    setTimeout(function(){err.classList.remove('on');},3000);
+    return;
+  }
+  email='+91 '+ph; name=nm||'Tasks Earner'; uid='user_'+ph;
+  document.getElementById('otpPh').textContent=email;
+  document.getElementById('tbName').textContent=name+' 🇮🇳';
+  document.getElementById('tbPh').textContent=email;
+  go('s2');startCD();
+}
+
+// OTP: must be exactly "123456" (demo) — no random digits
+function doVerify(){
+  var code='';
+  document.querySelectorAll('.ob').forEach(function(b){code+=b.value;});
+  if(code.length<6){toast('⚠️ Enter all 6 digits');return;}
+  if(code!=='123456'){
+    toast('❌ Wrong OTP! Demo code: 1 2 3 4 5 6');
+    document.querySelectorAll('.ob').forEach(function(b){
+      b.style.borderColor='#FF4444';
+      setTimeout(function(){b.style.borderColor='';},800);
+    });
+    return;
+  }
+  clearInterval(cdInt);
+  // Firebase: fetch or create user
+  try{
+    db.ref('users/'+uid).once('value',function(snap){
+      if(!snap.exists()){
+        db.ref('users/'+uid).set({phone:email,name:name,points:0,joinDate:Date.now(),ciTime:0});
+      } else {
+        var d=snap.val();
+        if(d.points>pts)pts=d.points;
+        if(d.ciTime>ciTime)ciTime=d.ciTime;
+      }
+      saveLS();
+      go('s3');navTo(0);syncPts();updateCI();
+    });
+  }catch(e){saveLS();go('s3');navTo(0);}
+}
+
+function doResend(){
+  document.querySelectorAll('.ob').forEach(function(b){b.value='';});
+  document.querySelectorAll('.ob')[0].focus();
+  startCD();toast('📲 OTP resent! Demo: 123456');
+}
+function startCD(){
+  var s=59;clearInterval(cdInt);
+  cdInt=setInterval(function(){
+    document.getElementById('cd').textContent=s;
+    if(s--<=0)clearInterval(cdInt);
+  },1000);
+}
+
+// ═══════════════════════════════════════════════
+//  Check-in — Firebase timestamp
+// ═══════════════════════════════════════════════
+function doCI(){
+  if(ciTime&&(Date.now()-ciTime)<CI){toast('⏳ Already claimed today!');return;}
+  ciTime=Date.now();
+  addPts(10, true);
+  try{db.ref('users/'+uid+'/ciTime').set(ciTime);}catch(e){}
+  saveLS();toast('📅 +10 Points! ✅');updateCI();
+}
+function updateCI(){
+  var now=Date.now();
+  var btn=document.getElementById('ciBtn');
+  var sub=document.getElementById('ciSub');
+  var tmr=document.getElementById('ciTmr');
+  if(ciTime&&(now-ciTime)<CI){
+    document.getElementById('ciCard').style.cursor='default';
+    btn.classList.add('off');btn.textContent='✅';
+    sub.textContent='Already claimed today';
+    tmr.style.display='block';startCiTimer();
+  } else {
+    document.getElementById('ciCard').style.cursor='pointer';
+    btn.classList.remove('off');btn.textContent='Claim';
+    sub.textContent='Claim your free +10 Points today';
+    tmr.style.display='none';clearInterval(ciInt);
+  }
+}
+function startCiTimer(){
+  clearInterval(ciInt);
+  ciInt=setInterval(function(){
+    var r=CI-(Date.now()-ciTime);
+    if(r<=0){updateCI();return;}
+    var h=Math.floor(r/3600000),m=Math.floor((r%3600000)/60000),s=Math.floor((r%60000)/1000);
+    document.getElementById('ciTmr').textContent='Next: '+pad(h)+':'+pad(m)+':'+pad(s);
+  },1000);
+}
+function pad(n){return String(n).padStart(2,'0');}
+
+// ═══════════════════════════════════════════════
+//  Tasks — Rate Limited
+// ═══════════════════════════════════════════════
+function doAd(){
+  if(adBusy){toast('⏳ Ad loading, please wait...');return;}
+  if(adTime&&(Date.now()-adTime)<AD_CD){
+    var rem=Math.ceil((AD_CD-(Date.now()-adTime))/60000);
+    toast('⏳ Wait '+rem+' min for next ad!');return;
+  }
+  adBusy=true;
+  toast('📺 Loading Ad...');
+  setTimeout(function(){
+    adBusy=false;adTime=Date.now();
+    addPts(15, true);saveLS();
+    toast('📺 Ad watched! +15 Points! ✅');
+  },2000);
+}
+function doRef(){
+  if(!uid){toast('⚠️ Please sign in first!');return;}
+  var link='https://bd900556-boop.github.io/Tasks-Earning/?ref='+uid;
+  try{
+    navigator.clipboard.writeText(link).then(function(){
+      toast('🔗 Link copied!');
+    }).catch(function(){
+      toast('🔗 Link: '+link);
+    });
+  }catch(e){toast('🔗 Share: '+link);}
+  if(refUsed){toast('🔗 Link copied! Bonus already claimed.');return;}
+  refUsed=true;addPts(50, true);saveLS();
+  toast('🔗 Link copied! +50 Points! ✅');
+}
+
+// ═══════════════════════════════════════════════
+//  Captcha
+// ═══════════════════════════════════════════════
+var CH='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+function newCap(){
+  var c='';for(var i=0;i<6;i++)c+=CH[Math.floor(Math.random()*CH.length)];
+  capCode=c;document.getElementById('capTxt').textContent=c;
+  document.getElementById('capIn').value='';
+}
+function checkCap(){
+  var v=document.getElementById('capIn').value.trim();
+  if(!v){toast('⚠️ Type the captcha!');return;}
+  if(capDone>=10){toast('⚠️ Max 10 per day reached!');return;}
+  if(v===capCode){
+    capDone=Math.min(capDone+1,10);addPts(5, true);
+    document.getElementById('capProg').style.width=(capDone*10)+'%';
+    document.getElementById('capCnt').textContent=capDone+'/10';
+    toast('✅ Correct! +5 Points!');
+  } else toast('❌ Wrong! Try again');
+  newCap();
+}
+
+// ═══════════════════════════════════════════════
+//  Quiz
+// ═══════════════════════════════════════════════
+var QS=[
+  {q:'24 + 38 = ?',o:[54,62,71,58],a:1},{q:'15 × 4 = ?',o:[45,60,55,50],a:1},
+  {q:'100 − 37 = ?',o:[73,67,63,53],a:2},{q:'8 × 9 = ?',o:[63,72,81,56],a:1},
+  {q:'45 + 29 = ?',o:[74,64,84,70],a:0},{q:'56 ÷ 7 = ?',o:[6,7,8,9],a:2},
+  {q:'33 × 3 = ?',o:[99,89,109,79],a:0},{q:'120 ÷ 8 = ?',o:[12,14,15,16],a:2},
+  {q:'18 × 5 = ?',o:[80,90,85,95],a:1},{q:'144 ÷ 12 = ?',o:[10,11,12,13],a:2},
+];
+var qi=0,qLock=false;
+function loadQ(){
+  qLock=false;
+  var q=QS[qi];
+  document.getElementById('qTxt').textContent=q.q;
+  document.getElementById('qScore').textContent=qScore;
+  for(var i=0;i<4;i++){
+    var el=document.getElementById('a'+i);
+    el.textContent=q.o[i];el.className='ans';
+    (function(el,ok){el.onclick=function(){ansQ(el,ok);};})(el,i===q.a);
+  }
+}
+function ansQ(el,ok){
+  if(qLock)return;qLock=true;
+  for(var i=0;i<4;i++)document.getElementById('a'+i).onclick=null;
+  el.classList.add(ok?'ok':'no');
+  if(!ok)document.getElementById('a'+QS[qi].a).classList.add('ok');
+  if(ok){qScore++;addPts(10, true);toast('✅ Correct! +10 Points!');}
+  else toast('❌ Wrong!');
+  setTimeout(function(){qi=(qi+1)%QS.length;loadQ();},1300);
+}
+
+// ═══════════════════════════════════════════════
+//  Wallet — Firebase validated withdrawal
+// ═══════════════════════════════════════════════
+function doWithdraw(){
+  var num=document.getElementById('payNum').value.trim();
+  var amt=parseInt(document.getElementById('payAmt').value)||0;
+  // Validate UPI/phone
+  if(!num){toast('⚠️ Enter UPI / GPay number!');return;}
+  var isPhone=/^[6-9]\d{9}$/.test(num);
+  var isUPI=/^[a-zA-Z0-9._-]+@[a-zA-Z]+$/.test(num);
+  if(!isPhone&&!isUPI){toast('⚠️ Enter valid number or UPI ID (name@upi)');return;}
+  // Validate amount
+  if(amt<1000){toast('⚠️ Minimum 1,000 Points!');return;}
+  if(amt>pts){toast('⚠️ Not enough points! You have '+pts+' pts');return;}
+  if(amt>50000){toast('⚠️ Max 50,000 per request');return;}
+  // Verify with Firebase
+  try{
+    db.ref('users/'+uid+'/points').once('value',function(snap){
+      var fbPts=snap.val()||0;
+      if(amt>fbPts){pts=fbPts;syncPts();toast('⚠️ Balance refreshed. Try again.');return;}
+      pts-=amt;
+      db.ref('users/'+uid+'/points').set(pts);
+      db.ref('withdrawals').push({userId:uid,email:email,name:name,
+        payNum:num,amount:amt,status:'pending',time:Date.now()});
+      var t=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+      hist.unshift({num:num,amt:amt,status:'pending',t:t});
+      document.getElementById('payNum').value='';
+      document.getElementById('payAmt').value='';
+      syncPts();renderHist();saveLS();
+      toast('✅ Request submitted! Admin reviews in 24h.');
+    });
+  }catch(e){
+    pts-=amt;
+    var t=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+    hist.unshift({num:num,amt:amt,status:'pending',t:t});
+    document.getElementById('payNum').value='';
+    document.getElementById('payAmt').value='';
+    syncPts();renderHist();saveLS();
+    toast('✅ Saved! Will sync when online.');
+  }
+}
+function renderHist(){
+  var el=document.getElementById('histDiv');
+  if(!hist.length){el.innerHTML='<div style="text-align:center;color:rgba(255,255,255,.3);padding:18px;font-size:12px">No withdrawals yet</div>';return;}
+  el.innerHTML=hist.map(function(h){return '<div class="h-item"><div class="h-ico '+(h.status==='pending'?'h-p':'h-d')+'">'+(h.status==='pending'?'⏳':'✅')+'</div><div class="h-inf"><div class="h-tit">'+h.amt.toLocaleString()+' Points</div><div class="h-dt">Today, '+h.t+'</div></div><div class="h-bdg '+(h.status==='pending'?'bp':'bd')+'">'+(h.status==='pending'?'Pending':'Approved')+'</div></div>';}).join('');
+}
+
+// ═══════════════════════════════════════════════
+//  Profile & Logout
+// ═══════════════════════════════════════════════
+function updateProfile(){
+  document.getElementById('pPts').textContent=pts.toLocaleString();
+  document.getElementById('pTasks').textContent=tasks;
+  document.getElementById('pPh').textContent=email||'—';
+  document.getElementById('pName').textContent=name+' 🇮🇳';
+}
+// ═══════════════════════════════════════════════
+//  Help
+// ═══════════════════════════════════════════════
+function sendHelp(){
+  var msg=document.getElementById('hMsg').value.trim();
+  if(!msg){toast('⚠️ Please write your message!');return;}
+  var cats={points:'Points Issue',withdrawal:'Withdrawal Issue',otp:'OTP Issue',task:'Task Issue',other:'Other'};
+  var cat=document.getElementById('hCat').value;
+  var ph=document.getElementById('hPh').value.trim()||email;
+  var sub=encodeURIComponent('Tasks Earning: '+cats[cat]);
+  var body=encodeURIComponent('Category: '+cats[cat]+'\nPhone: '+ph+'\n\nMessage:\n'+msg);
+  window.open('mailto:bd900556@gmail.com?subject='+sub+'&body='+body,'_blank');
+  document.getElementById('helpSent').classList.add('on');
+  document.getElementById('hMsg').value='';
+  toast('✅ Email app opened!');
+}
+function fq(el){
+  var a=el.querySelector('.fq-a'),s=el.querySelector('.fq-q span'),open=a.classList.contains('on');
+  document.querySelectorAll('.fq-a').forEach(function(x){x.classList.remove('on');});
+  document.querySelectorAll('.fq-q span').forEach(function(x){x.textContent='+';});
+  if(!open){a.classList.add('on');s.textContent='-';}
+}
+
+// ═══════════════════════════════════════════════
+//  Toast
+// ═══════════════════════════════════════════════
+function toast(msg){
+  var t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('on');
+  clearTimeout(t._t);t._t=setTimeout(function(){t.classList.remove('on');},2800);
+}
+
+// ═══════════════════════════════════════════════
+//  OTP Boxes — Complete, Numbers Only, Auto-jump
+// ═══════════════════════════════════════════════
+document.querySelectorAll('.ob').forEach(function(box,i,arr){
+  // Numbers only
+  box.addEventListener('keypress',function(e){
+    if(!/[0-9]/.test(e.key)){e.preventDefault();}
+  });
+  // Auto-advance
+  box.addEventListener('input',function(){
+    box.value=box.value.replace(/[^0-9]/g,'').slice(0,1);
+    if(box.value&&i<arr.length-1)arr[i+1].focus();
+    // Auto verify when all 6 filled
+    var c='';arr.forEach(function(b){c+=b.value;});
+    if(c.length===6)setTimeout(doVerify,200);
+  });
+  // Backspace
+  box.addEventListener('keydown',function(e){
+    if(e.key==='Backspace'&&!box.value&&i>0){
+      arr[i-1].value='';arr[i-1].focus();
+    }
+  });
+  // Paste support
+  box.addEventListener('paste',function(e){
+    e.preventDefault();
+    var digits=(e.clipboardData||window.clipboardData).getData('text').replace(/\D/g,'').split('');
+    arr.forEach(function(b,j){b.value=digits[j]||'';});
+    if(digits.length>=6)setTimeout(doVerify,200);
+    else arr[Math.min(digits.length,5)].focus();
+  });
+});
+
+// ── Init ──
+loadQ();
+newCap();
+</script>
+</body>
+</html>
+
